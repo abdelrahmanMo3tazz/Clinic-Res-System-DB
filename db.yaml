@@ -1,0 +1,58 @@
+# MongoDB PersistentVolumeClaim (PVC)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pv-claim
+  labels:
+    app: mongodb
+spec:
+  accessModes:
+    - ReadWriteOnce # This means that the volume can be mounted as read-write by a single node
+  resources:
+    requests:
+      storage: 1Gi # This is the size of the volume
+---
+# MongoDB Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  labels:
+    app: mongodb # This is the label of the deployment
+spec:
+  selector:
+    matchLabels:
+      app: mongodb # This is selector for where the pod will be deployed
+  replicas: 1
+  template: # This is the pod that will be created
+    metadata:
+      labels:
+        app: mongodb # This is the label of the pod that will be created
+    spec:
+      containers: # This is the container that will be created
+        - name: mongodb-container
+          image: "quay.io/abdonassr85/db"
+          ports: # This is where we will expose the port of the container to the outside world
+            - containerPort: 27017
+              name: mongodb
+          volumeMounts:
+            - name: mongodb-persistent-storage
+              mountPath: /data/db
+      volumes:
+        - name: mongodb-persistent-storage
+          persistentVolumeClaim:
+            claimName: mongodb-pv-claim # This is the name of the PVC that we created earlier
+---
+# MongoDB Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service # The DNS name of the service will be mongodb-service.default.svc.cluster.local
+  labels:
+    app: mongodb # This is the label of the service
+spec:
+  ports:
+    - port: 27017 # This is the port that the service will listen on inside the cluster
+      targetPort: 27017 # This is the port that the service will be exposed on outside the cluster
+  selector:
+    app: mongodb # This is the label of the deployment that we created earlier
